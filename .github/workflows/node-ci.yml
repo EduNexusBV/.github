@@ -1,0 +1,39 @@
+# Canonical REUSABLE CI-workflow voor Node/pnpm-apps (NestJS + Next).
+# Plaats in EduNexusBV/.github/.github/workflows/node-ci.yml en roep aan via de caller-stub.
+# Geoptimaliseerd op Actions-minuten zonder de quality-gate te verzwakken.
+name: node-ci
+
+on:
+  workflow_call:
+    inputs:
+      node-version:      { type: string, default: '22' }
+      working-directory: { type: string, default: '.' }
+      run-tests:         { type: boolean, default: true }
+
+# Superseded runs op dezelfde ref kosten geen minuten meer.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    # Draft-PR's draaien niet (scheelt minuten tot de PR ready is).
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15            # runaway-job vangnet
+    defaults:
+      run: { working-directory: ${{ inputs.working-directory }} }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: pnpm                # cache-key = pnpm-lock.yaml-hash → nooit stale-false-green
+      - run: pnpm install --frozen-lockfile   # reproduceerbaar
+      - run: pnpm -r --if-present typecheck
+      - run: pnpm -r --if-present lint
+      - run: pnpm -r --if-present build
+      - name: test
+        if: ${{ inputs.run-tests }}
+        run: pnpm -r --if-present test
