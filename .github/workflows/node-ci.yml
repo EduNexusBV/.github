@@ -23,7 +23,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15            # runaway-job vangnet
     defaults:
-      run: { working-directory: ${{ inputs.working-directory }} }
+      # block-style: '}}' in een flow-map breekt de YAML
+      run:
+        working-directory: ${{ inputs.working-directory }}
     steps:
       - uses: actions/checkout@v4
       - if: ${{ inputs.package-manager == 'pnpm' }}
